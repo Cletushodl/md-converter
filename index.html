@@ -45,7 +45,7 @@
         .panel-title { color: #a8dadc; font-weight: 600; }
         textarea {
             width: 100%;
-            height: 500px;
+            height: 450px;
             background: #0f0f23;
             color: #eee;
             border: 1px solid #457b9d;
@@ -62,7 +62,7 @@
             color: #222;
             border-radius: 8px;
             padding: 20px;
-            height: 500px;
+            height: 450px;
             overflow-y: auto;
             line-height: 1.8;
         }
@@ -96,6 +96,12 @@
         .btn-secondary:hover { background: #3d5273; }
         .btn-success { background: #2a9d8f; color: #fff; }
         .btn-success:hover { background: #1a7d6f; }
+        .btn-warning { background: #e9c46a; color: #1a1a2e; }
+        .btn-warning:hover { background: #f4d58d; }
+        .btn-danger { background: #e63946; color: #fff; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-small { padding: 5px 10px; font-size: 12px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         input[type="file"] { display: none; }
         .file-label {
             padding: 8px 16px;
@@ -107,10 +113,6 @@
             display: inline-block;
         }
         .file-label:hover { background: #3d5273; }
-        .spell-error { 
-            text-decoration: wavy underline red;
-            text-decoration-skip-ink: none;
-        }
         .stats {
             margin-top: 10px;
             font-size: 12px;
@@ -118,22 +120,107 @@
             display: flex;
             gap: 20px;
         }
-        .spell-status { color: #e9c46a; }
-        #spellErrors {
-            max-height: 100px;
-            overflow-y: auto;
+        
+        /* Spell Check Panel */
+        .spell-panel {
+            background: #0f0f23;
+            border: 1px solid #457b9d;
+            border-radius: 8px;
+            padding: 12px;
             margin-top: 10px;
+            display: none;
+        }
+        .spell-panel.active { display: block; }
+        .spell-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .spell-counter {
+            color: #e9c46a;
+            font-weight: 600;
+        }
+        .spell-nav {
+            display: flex;
+            gap: 8px;
+        }
+        .spell-word-display {
+            background: #1a1a2e;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+        }
+        .spell-word {
+            font-size: 18px;
+            color: #e63946;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .spell-context {
             font-size: 12px;
+            color: #888;
+            font-family: monospace;
         }
-        .spell-item {
-            display: inline-block;
-            background: #2d4263;
-            padding: 2px 8px;
-            border-radius: 4px;
-            margin: 2px;
+        .spell-context .highlight {
+            color: #e63946;
+            background: rgba(230, 57, 70, 0.2);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .spell-suggestions {
+            margin-top: 10px;
+        }
+        .spell-suggestions-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+        .suggestion-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .suggestion-btn {
+            background: #2a9d8f;
+            color: #fff;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
             cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
         }
-        .spell-item:hover { background: #e63946; }
+        .suggestion-btn:hover {
+            background: #1a7d6f;
+            transform: translateY(-1px);
+        }
+        .spell-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #2d4263;
+        }
+        .custom-replace {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .custom-replace input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #457b9d;
+            border-radius: 6px;
+            background: #1a1a2e;
+            color: #eee;
+            font-size: 14px;
+        }
+        .custom-replace input:focus {
+            outline: none;
+            border-color: #a8dadc;
+        }
+        
         #loading {
             position: fixed;
             top: 50%;
@@ -143,6 +230,20 @@
             padding: 20px 40px;
             border-radius: 10px;
             display: none;
+            z-index: 1000;
+        }
+        
+        /* Keyboard shortcuts hint */
+        .shortcuts {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
+        }
+        kbd {
+            background: #2d4263;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
         }
     </style>
 </head>
@@ -158,10 +259,10 @@
                         📂 Open .md
                         <input type="file" id="fileInput" accept=".md,.txt,.markdown">
                     </label>
-                    <button class="btn-secondary" onclick="checkSpelling()">🔍 Spell Check</button>
+                    <button class="btn-warning" onclick="startSpellCheck()">🔍 Spell Check</button>
                 </div>
             </div>
-            <textarea id="editor" spellcheck="true" placeholder="Type or paste your markdown here...
+            <textarea id="editor" spellcheck="false" placeholder="Type or paste your markdown here...
 
 # Example Header
 
@@ -178,9 +279,39 @@ code block
             <div class="stats">
                 <span id="wordCount">Words: 0</span>
                 <span id="charCount">Characters: 0</span>
-                <span id="spellStatus" class="spell-status"></span>
             </div>
-            <div id="spellErrors"></div>
+            
+            <!-- Spell Check Panel -->
+            <div class="spell-panel" id="spellPanel">
+                <div class="spell-header">
+                    <span class="spell-counter" id="spellCounter">Error 1 of 5</span>
+                    <div class="spell-nav">
+                        <button class="btn-secondary btn-small" onclick="prevError()">← Prev</button>
+                        <button class="btn-secondary btn-small" onclick="nextError()">Next →</button>
+                        <button class="btn-danger btn-small" onclick="closeSpellCheck()">✕ Close</button>
+                    </div>
+                </div>
+                <div class="spell-word-display">
+                    <div class="spell-word" id="currentWord">misspeled</div>
+                    <div class="spell-context" id="wordContext">...this is a <span class="highlight">misspeled</span> word in the...</div>
+                </div>
+                <div class="spell-suggestions">
+                    <div class="spell-suggestions-label">Suggestions (click to replace):</div>
+                    <div class="suggestion-buttons" id="suggestionButtons"></div>
+                </div>
+                <div class="custom-replace">
+                    <input type="text" id="customWord" placeholder="Or type custom replacement...">
+                    <button class="btn-primary btn-small" onclick="replaceWithCustom()">Replace</button>
+                </div>
+                <div class="spell-actions">
+                    <button class="btn-secondary" onclick="ignoreOnce()">Ignore Once</button>
+                    <button class="btn-secondary" onclick="ignoreAll()">Ignore All</button>
+                    <button class="btn-success" onclick="replaceAll()">Replace All</button>
+                </div>
+                <div class="shortcuts">
+                    <kbd>←</kbd> <kbd>→</kbd> navigate | <kbd>1</kbd>-<kbd>5</kbd> pick suggestion | <kbd>Enter</kbd> replace with input | <kbd>Esc</kbd> close
+                </div>
+            </div>
         </div>
         
         <div class="panel">
@@ -202,30 +333,31 @@ code block
         const preview = document.getElementById('preview');
         const wordCountEl = document.getElementById('wordCount');
         const charCountEl = document.getElementById('charCount');
-        const spellStatus = document.getElementById('spellStatus');
-        const spellErrorsEl = document.getElementById('spellErrors');
+        const spellPanel = document.getElementById('spellPanel');
+        const spellCounter = document.getElementById('spellCounter');
+        const currentWordEl = document.getElementById('currentWord');
+        const wordContextEl = document.getElementById('wordContext');
+        const suggestionButtonsEl = document.getElementById('suggestionButtons');
+        const customWordInput = document.getElementById('customWord');
         
         let dictionary = null;
-        let dictLoading = false;
+        let spellErrors = [];
+        let currentErrorIndex = 0;
+        let ignoredWords = new Set();
         
         // Load dictionary
         async function loadDictionary() {
-            if (dictionary || dictLoading) return dictionary;
-            dictLoading = true;
-            spellStatus.textContent = 'Loading dictionary...';
+            if (dictionary) return dictionary;
             try {
                 const [aff, dic] = await Promise.all([
                     fetch('https://cdn.jsdelivr.net/npm/dictionary-en@3.2.0/index.aff').then(r => r.text()),
                     fetch('https://cdn.jsdelivr.net/npm/dictionary-en@3.2.0/index.dic').then(r => r.text())
                 ]);
                 dictionary = new Typo('en_US', aff, dic);
-                spellStatus.textContent = '✓ Dictionary loaded';
-                setTimeout(() => spellStatus.textContent = '', 2000);
             } catch (e) {
-                spellStatus.textContent = '⚠ Dictionary failed to load';
-                console.error(e);
+                console.error('Dictionary load failed:', e);
+                alert('Failed to load dictionary. Please check your internet connection.');
             }
-            dictLoading = false;
             return dictionary;
         }
         
@@ -234,13 +366,11 @@ code block
             const text = editor.value;
             preview.innerHTML = marked.parse(text);
             
-            // Update stats
             const words = text.trim() ? text.trim().split(/\s+/).length : 0;
             wordCountEl.textContent = `Words: ${words}`;
             charCountEl.textContent = `Characters: ${text.length}`;
         }
         
-        // Debounce
         let renderTimeout;
         editor.addEventListener('input', () => {
             clearTimeout(renderTimeout);
@@ -260,48 +390,229 @@ code block
             }
         });
         
-        // Spell check
-        async function checkSpelling() {
+        // Spell Check Functions
+        async function startSpellCheck() {
             const dict = await loadDictionary();
             if (!dict) return;
             
             const text = editor.value;
-            const words = text.match(/[a-zA-Z']+/g) || [];
-            const errors = [];
-            const seen = new Set();
+            spellErrors = [];
+            ignoredWords.clear();
             
-            words.forEach(word => {
+            // Find all word positions
+            const wordRegex = /[a-zA-Z']+/g;
+            let match;
+            const seenPositions = new Map(); // word -> first position
+            
+            while ((match = wordRegex.exec(text)) !== null) {
+                const word = match[0];
                 const lower = word.toLowerCase();
-                if (seen.has(lower)) return;
-                seen.add(lower);
                 
-                if (word.length > 1 && !dict.check(word) && !dict.check(lower)) {
-                    const suggestions = dict.suggest(word).slice(0, 3);
-                    errors.push({ word, suggestions });
+                // Skip short words, contractions, and already checked
+                if (word.length <= 1) continue;
+                if (word.includes("'")) continue;
+                
+                if (!dict.check(word) && !dict.check(lower) && !dict.check(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())) {
+                    spellErrors.push({
+                        word: word,
+                        index: match.index,
+                        suggestions: dict.suggest(word).slice(0, 5)
+                    });
                 }
-            });
+            }
             
-            if (errors.length === 0) {
-                spellStatus.textContent = '✓ No spelling errors';
-                spellErrorsEl.innerHTML = '';
+            if (spellErrors.length === 0) {
+                alert('✓ No spelling errors found!');
+                return;
+            }
+            
+            currentErrorIndex = 0;
+            spellPanel.classList.add('active');
+            showCurrentError();
+        }
+        
+        function showCurrentError() {
+            if (spellErrors.length === 0) {
+                closeSpellCheck();
+                return;
+            }
+            
+            const error = spellErrors[currentErrorIndex];
+            spellCounter.textContent = `Error ${currentErrorIndex + 1} of ${spellErrors.length}`;
+            currentWordEl.textContent = error.word;
+            
+            // Show context
+            const text = editor.value;
+            const start = Math.max(0, error.index - 30);
+            const end = Math.min(text.length, error.index + error.word.length + 30);
+            let context = text.slice(start, end);
+            
+            // Highlight the word in context
+            const relativeIndex = error.index - start;
+            const before = escapeHtml(context.slice(0, relativeIndex));
+            const word = escapeHtml(context.slice(relativeIndex, relativeIndex + error.word.length));
+            const after = escapeHtml(context.slice(relativeIndex + error.word.length));
+            
+            wordContextEl.innerHTML = `${start > 0 ? '...' : ''}${before}<span class="highlight">${word}</span>${after}${end < text.length ? '...' : ''}`;
+            
+            // Show suggestions
+            suggestionButtonsEl.innerHTML = error.suggestions.map((s, i) => 
+                `<button class="suggestion-btn" onclick="replaceWith('${escapeHtml(s)}')">${i + 1}. ${escapeHtml(s)}</button>`
+            ).join('');
+            
+            if (error.suggestions.length === 0) {
+                suggestionButtonsEl.innerHTML = '<span style="color: #888;">No suggestions available</span>';
+            }
+            
+            // Clear custom input
+            customWordInput.value = error.word;
+            
+            // Highlight in editor
+            editor.focus();
+            editor.setSelectionRange(error.index, error.index + error.word.length);
+        }
+        
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, m => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+        
+        function nextError() {
+            if (spellErrors.length === 0) return;
+            currentErrorIndex = (currentErrorIndex + 1) % spellErrors.length;
+            showCurrentError();
+        }
+        
+        function prevError() {
+            if (spellErrors.length === 0) return;
+            currentErrorIndex = (currentErrorIndex - 1 + spellErrors.length) % spellErrors.length;
+            showCurrentError();
+        }
+        
+        function replaceWith(newWord) {
+            if (spellErrors.length === 0) return;
+            
+            const error = spellErrors[currentErrorIndex];
+            const text = editor.value;
+            
+            // Replace the word
+            editor.value = text.slice(0, error.index) + newWord + text.slice(error.index + error.word.length);
+            render();
+            
+            // Adjust subsequent error positions
+            const diff = newWord.length - error.word.length;
+            for (let i = currentErrorIndex + 1; i < spellErrors.length; i++) {
+                spellErrors[i].index += diff;
+            }
+            
+            // Remove current error and show next
+            spellErrors.splice(currentErrorIndex, 1);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            
+            if (spellErrors.length === 0) {
+                alert('✓ All spelling errors corrected!');
+                closeSpellCheck();
             } else {
-                spellStatus.textContent = `⚠ ${errors.length} potential errors`;
-                spellErrorsEl.innerHTML = errors.map(e => 
-                    `<span class="spell-item" title="Suggestions: ${e.suggestions.join(', ') || 'none'}" onclick="findWord('${e.word}')">${e.word}</span>`
-                ).join('');
+                showCurrentError();
             }
         }
         
-        function findWord(word) {
-            const text = editor.value;
-            const regex = new RegExp(`\\b${word}\\b`, 'i');
-            const match = text.match(regex);
-            if (match) {
-                const index = text.search(regex);
-                editor.focus();
-                editor.setSelectionRange(index, index + word.length);
+        function replaceWithCustom() {
+            const newWord = customWordInput.value.trim();
+            if (newWord) {
+                replaceWith(newWord);
             }
         }
+        
+        function ignoreOnce() {
+            if (spellErrors.length === 0) return;
+            spellErrors.splice(currentErrorIndex, 1);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            if (spellErrors.length === 0) {
+                alert('✓ Spell check complete!');
+                closeSpellCheck();
+            } else {
+                showCurrentError();
+            }
+        }
+        
+        function ignoreAll() {
+            if (spellErrors.length === 0) return;
+            const word = spellErrors[currentErrorIndex].word.toLowerCase();
+            spellErrors = spellErrors.filter(e => e.word.toLowerCase() !== word);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            if (spellErrors.length === 0) {
+                alert('✓ Spell check complete!');
+                closeSpellCheck();
+            } else {
+                showCurrentError();
+            }
+        }
+        
+        function replaceAll() {
+            if (spellErrors.length === 0) return;
+            
+            const error = spellErrors[currentErrorIndex];
+            const newWord = customWordInput.value.trim() || (error.suggestions[0] || error.word);
+            const oldWord = error.word;
+            
+            // Replace all instances
+            let text = editor.value;
+            const regex = new RegExp(`\\b${oldWord}\\b`, 'g');
+            text = text.replace(regex, newWord);
+            editor.value = text;
+            render();
+            
+            // Remove all matching errors
+            spellErrors = spellErrors.filter(e => e.word !== oldWord);
+            if (currentErrorIndex >= spellErrors.length) {
+                currentErrorIndex = 0;
+            }
+            
+            if (spellErrors.length === 0) {
+                alert('✓ All spelling errors corrected!');
+                closeSpellCheck();
+            } else {
+                // Rerun spell check to fix positions
+                startSpellCheck();
+            }
+        }
+        
+        function closeSpellCheck() {
+            spellPanel.classList.remove('active');
+            spellErrors = [];
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!spellPanel.classList.contains('active')) return;
+            
+            if (e.key === 'Escape') {
+                closeSpellCheck();
+            } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                nextError();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                prevError();
+            } else if (e.key >= '1' && e.key <= '5') {
+                const idx = parseInt(e.key) - 1;
+                const error = spellErrors[currentErrorIndex];
+                if (error && error.suggestions[idx]) {
+                    replaceWith(error.suggestions[idx]);
+                }
+            } else if (e.key === 'Enter' && document.activeElement === customWordInput) {
+                e.preventDefault();
+                replaceWithCustom();
+            }
+        });
         
         // Export PDF
         async function exportPDF() {
