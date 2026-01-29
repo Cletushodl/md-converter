@@ -621,9 +621,15 @@ code block
             const element = preview.cloneNode(true);
             element.style.padding = '40px';
             element.style.background = '#fff';
+            element.style.color = '#222';
             element.style.height = 'auto';
             element.style.maxHeight = 'none';
             element.style.overflow = 'visible';
+            element.style.position = 'absolute';
+            element.style.left = '-9999px';
+            element.style.top = '0';
+            element.style.width = '6.5in';
+            document.body.appendChild(element);
             
             const opt = {
                 margin: [0.75, 0.75],
@@ -639,6 +645,7 @@ code block
             } catch (e) {
                 alert('PDF generation failed: ' + e.message);
             }
+            document.body.removeChild(element);
             
             document.getElementById('loading').style.display = 'none';
         }
