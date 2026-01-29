@@ -621,6 +621,9 @@ code block
             const element = preview.cloneNode(true);
             element.style.padding = '40px';
             element.style.background = '#fff';
+            element.style.height = 'auto';
+            element.style.maxHeight = 'none';
+            element.style.overflow = 'visible';
             
             const opt = {
                 margin: [0.75, 0.75],
